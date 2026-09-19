@@ -8,7 +8,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: "https://task-tracker-codevite1.vercel.app"
+}));
 app.use(express.json());
 
 const PORT = 5000;
