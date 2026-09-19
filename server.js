@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = 5000;
-const JWT_SECRET = 'task-habit-tracker-secret-key'; // fine for local/student projects
+const JWT_SECRET = process.env.JWT_SECRET || 'task-habit-tracker-secret-key';// fine for local/student projects
 const JWT_EXPIRES_IN = '7d'; // long-lived so it won't randomly "expire" while you're working
 
 // ---------- IN-MEMORY DATA ----------
@@ -172,6 +172,6 @@ app.get('/api/stats', requireAuth, (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.listen(process.env.PORT || 5000, () => {
+  console.log("Server running");
 });
