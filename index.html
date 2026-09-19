@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Task & Habit Tracker</title>
+<style>
+  :root{
+    --bg:#F6F5F1; --panel:#FFFFFF; --ink:#1F2420; --ink-soft:#5B6259;
+    --line:#E1DFD8; --moss:#3F5B45; --moss-deep:#2C4130; --amber:#C97A3D; --danger:#B3543F;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);}
+  .hidden{display:none !important;}
+
+  /* ---- Auth screen ---- */
+  #auth-screen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .auth-card{
+    width:100%; max-width:380px; background:var(--panel); border:1px solid var(--line);
+    border-radius:var(--radius); padding:32px;
+  }
+  .auth-card h1{ margin:0 0 18px; font-size:20px; }
+  .auth-card label{ display:block; font-size:13px; color:var(--ink-soft); margin:12px 0 4px; }
+  .auth-card input{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px;
+  }
+  .auth-card button[type=submit]{
+    width:100%; margin-top:18px; padding:11px; border:none; border-radius:8px;
+    background:var(--moss); color:#fff; font-size:14px; cursor:pointer;
+  }
+  .auth-card button[type=submit]:hover{ background:var(--moss-deep); }
+  .auth-switch{ text-align:center; margin-top:14px; font-size:13px; color:var(--ink-soft); }
+  .auth-switch button{ background:none; border:none; color:var(--moss-deep); text-decoration:underline; cursor:pointer; font-size:13px; }
+  .auth-error{ color:var(--danger); font-size:13px; margin-top:10px; }
+
+  /* ---- App shell ---- */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 28px; background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{ font-size:19px; margin:0; }
+  .user-box{ display:flex; align-items:center; gap:14px; font-size:14px; color:var(--ink-soft); }
+  .user-box button{
+    background:transparent; border:1px solid var(--line); padding:7px 14px;
+    border-radius:var(--radius); cursor:pointer; font-size:13px; color:var(--ink);
+  }
+  .user-box button:hover{ border-color:var(--moss); color:var(--moss); }
+
+  nav{ display:flex; gap:4px; padding:0 28px; background:var(--panel); border-bottom:1px solid var(--line); }
+  nav button{
+    border:none; background:transparent; padding:14px 18px; font-size:14px; cursor:pointer;
+    color:var(--ink-soft); border-bottom:2px solid transparent;
+  }
+  nav button.active{ color:var(--moss-deep); border-bottom:2px solid var(--moss); font-weight:600; }
+
+  main{ max-width:900px; margin:0 auto; padding:28px; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  .row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .row h2{ margin:0; font-size:17px; }
+
+  .btn-primary{
+    background:var(--moss); color:#fff; border:none; padding:9px 16px;
+    border-radius:var(--radius); font-size:14px; cursor:pointer;
+  }
+  .btn-primary:hover{ background:var(--moss-deep); }
+
+  form.inline-add{ display:flex; gap:8px; margin-bottom:16px; }
+  form.inline-add input{
+    flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px;
+  }
+
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .card .details{ flex:1; }
+  .card h3{ margin:0 0 4px; font-size:15px; }
+  .meta{ display:flex; gap:8px; font-size:12px; color:var(--ink-soft); flex-wrap:wrap; }
+  .pill{ padding:2px 9px; border-radius:20px; border:1px solid var(--line); }
+  .pill.done{ color:var(--moss-deep); border-color:var(--moss); background:#EEF3EC; }
+  .pill.pending{ color:var(--amber); border-color:var(--amber); background:#FBF0E7; }
+
+  .actions{ display:flex; gap:8px; }
+  .actions button{
+    border:1px solid var(--line); background:transparent; padding:6px 10px;
+    border-radius:8px; cursor:pointer; font-size:12px;
+  }
+  .actions button.complete{ color:var(--moss-deep); }
+  .actions button.delete{ color:var(--danger); }
+  .actions button:hover{ border-color:currentColor; }
+
+  .empty{ text-align:center; padding:36px 20px; color:var(--ink-soft); border:1px dashed var(--line); border-radius:var(--radius); font-size:14px; }
+
+  .stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+  .stat{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
+  .stat .num{ font-size:24px; font-weight:600; color:var(--moss-deep); }
+  .stat .label{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+
+  .error-banner{
+    background:#FBEAE5; border:1px solid var(--danger); color:var(--danger);
+    padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; display:none;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ AUTH SCREEN ============ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <h1 id="auth-title">Log in</h1>
+    <form id="auth-form">
+      <div id="username-field" class="hidden">
+        <label>Username</label>
+        <input type="text" id="auth-username" />
+      </div>
+      <label>Email</label>
+      <input type="email" id="auth-email" required />
+      <label>Password</label>
+      <input type="password" id="auth-password" minlength="6" required />
+      <button type="submit" id="auth-submit-btn">Log in</button>
+    </form>
+    <div class="auth-switch">
+      <span id="auth-switch-text">No account?</span>
+      <button type="button" id="auth-switch-btn">Register</button>
+    </div>
+    <div id="auth-error" class="auth-error"></div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="app-shell" class="hidden">
+  <header>
+    <h1>Task &amp; Habit Tracker</h1>
+    <div class="user-box">
+      <span id="username-display">Hi, there</span>
+      <button id="logout-btn">Log out</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="tab-btn active" data-view="dashboard">Dashboard</button>
+    <button class="tab-btn" data-view="tasks">Tasks</button>
+    <button class="tab-btn" data-view="habits">Habits</button>
+  </nav>
+
+  <main>
+    <div id="error-banner" class="error-banner"></div>
+
+    <section id="view-dashboard" class="view active">
+      <div class="row"><h2>Overview</h2></div>
+      <div class="stats">
+        <div class="stat"><div class="num" id="stat-open">0</div><div class="label">Open tasks</div></div>
+        <div class="stat"><div class="num" id="stat-done">0</div><div class="label">Completed tasks</div></div>
+        <div class="stat"><div class="num" id="stat-habits">0</div><div class="label">Habits</div></div>
+        <div class="stat"><div class="num" id="stat-streak">0</div><div class="label">Best streak</div></div>
+      </div>
+    </section>
+
+    <section id="view-tasks" class="view">
+      <div class="row"><h2>Tasks</h2></div>
+      <form class="inline-add" id="task-form">
+        <input type="text" id="task-title" placeholder="New task title" required />
+        <button class="btn-primary" type="submit">Add task</button>
+      </form>
+      <div id="tasks-list"></div>
+    </section>
+
+    <section id="view-habits" class="view">
+      <div class="row"><h2>Habits</h2></div>
+      <form class="inline-add" id="habit-form">
+        <input type="text" id="habit-name" placeholder="New habit name" required />
+        <button class="btn-primary" type="submit">Add habit</button>
+      </form>
+      <div id="habits-list"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+const API_BASE = "http://localhost:5000/api";
+
+/* ---------- SESSION HELPERS ---------- */
+function getToken(){ return localStorage.getItem("token"); }
+function getUser(){
+  const raw = localStorage.getItem("user");
+  return raw ? JSON.parse(raw) : null;
+}
+function setSession(token, user){
+  localStorage.setItem("token", token);
+  localStorage.setItem("user", JSON.stringify(user));
+}
+function clearSession(){
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+}
+
+/* ---------- API WRAPPER ---------- */
+async function api(path, options = {}){
+  const token = getToken();
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { "Authorization": "Bearer " + token } : {}),
+      ...(options.headers || {})
+    }
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok){
+    throw new Error(data.error || ("Request failed (" + res.status + ")"));
+  }
+  return data;
+}
+
+/* ---------- AUTH SCREEN LOGIC ---------- */
+let authMode = "login"; // or "register"
+
+const authForm = document.getElementById("auth-form");
+const authTitle = document.getElementById("auth-title");
+const authSubmitBtn = document.getElementById("auth-submit-btn");
+const authSwitchText = document.getElementById("auth-switch-text");
+const authSwitchBtn = document.getElementById("auth-switch-btn");
+const usernameField = document.getElementById("username-field");
+const authError = document.getElementById("auth-error");
+
+authSwitchBtn.addEventListener("click", () => {
+  authMode = authMode === "login" ? "register" : "login";
+  authError.textContent = "";
+  if (authMode === "register"){
+    authTitle.textContent = "Create an account";
+    authSubmitBtn.textContent = "Register";
+    authSwitchText.textContent = "Already have an account?";
+    authSwitchBtn.textContent = "Log in";
+    usernameField.classList.remove("hidden");
+  } else {
+    authTitle.textContent = "Log in";
+    authSubmitBtn.textContent = "Log in";
+    authSwitchText.textContent = "No account?";
+    authSwitchBtn.textContent = "Register";
+    usernameField.classList.add("hidden");
+  }
+});
+
+authForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  authError.textContent = "";
+  const email = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+  const username = document.getElementById("auth-username").value.trim();
+
+  try{
+    const data = authMode === "login"
+      ? await api("/auth/login", { method:"POST", body: JSON.stringify({ email, password }) })
+      : await api("/auth/register", { method:"POST", body: JSON.stringify({ username, email, password }) });
+
+    setSession(data.token, data.user);
+    showApp();
+  }catch(err){
+    authError.textContent = err.message;
+  }
+});
+
+/* ---------- APP SHELL / NAV ---------- */
+function showApp(){
+  const user = getUser();
+  document.getElementById("auth-screen").classList.add("hidden");
+  document.getElementById("app-shell").classList.remove("hidden");
+  document.getElementById("username-display").textContent = "Hi, " + (user ? user.username : "there");
+  loadDashboard();
+}
+function showAuth(){
+  document.getElementById("app-shell").classList.add("hidden");
+  document.getElementById("auth-screen").classList.remove("hidden");
+}
+
+document.getElementById("logout-btn").addEventListener("click", () => {
+  clearSession();
+  showAuth();
+});
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("view-" + btn.dataset.view).classList.add("active");
+    if (btn.dataset.view === "dashboard") loadDashboard();
+    if (btn.dataset.view === "tasks") loadTasks();
+    if (btn.dataset.view === "habits") loadHabits();
+  });
+});
+
+function showError(msg){
+  const el = document.getElementById("error-banner");
+  el.textContent = msg;
+  el.style.display = "block";
+  setTimeout(() => { el.style.display = "none"; }, 4000);
+}
+
+/* ---------- DASHBOARD ---------- */
+async function loadDashboard(){
+  try{
+    const stats = await api("/stats");
+    document.getElementById("stat-open").textContent = stats.openTasks;
+    document.getElementById("stat-done").textContent = stats.completedTasks;
+    document.getElementById("stat-habits").textContent = stats.totalHabits;
+    document.getElementById("stat-streak").textContent = stats.bestStreak;
+  }catch(err){ showError(err.message); }
+}
+
+/* ---------- TASKS ---------- */
+async function loadTasks(){
+  try{
+    const tasks = await api("/tasks");
+    const list = document.getElementById("tasks-list");
+    if (!tasks.length){
+      list.innerHTML = '<div class="empty">No tasks yet. Add your first one above.</div>';
+      return;
+    }
+    list.innerHTML = tasks.map(t => `
+      <div class="card">
+        <div class="details">
+          <h3>${escapeHtml(t.title)}</h3>
+          <div class="meta">
+            <span class="pill ${t.status === 'completed' ? 'done' : 'pending'}">${t.status === 'completed' ? 'Completed' : 'Pending'}</span>
+          </div>
+        </div>
+        <div class="actions">
+          ${t.status !== 'completed' ? `<button class="complete" onclick="completeTask('${t.id}')">Complete</button>` : ""}
+          <button class="delete" onclick="deleteTaskItem('${t.id}')">Delete</button>
+        </div>
+      </div>
+    `).join("");
+  }catch(err){ showError(err.message); }
+}
+
+document.getElementById("task-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const title = document.getElementById("task-title").value.trim();
+  if (!title) return;
+  try{
+    await api("/tasks", { method:"POST", body: JSON.stringify({ title, status:"pending" }) });
+    document.getElementById("task-title").value = "";
+    loadTasks();
+  }catch(err){ showError(err.message); }
+});
+
+async function completeTask(id){
+  try{ await api(`/tasks/${id}`, { method:"PUT", body: JSON.stringify({ status:"completed" }) }); loadTasks(); }
+  catch(err){ showError(err.message); }
+}
+async function deleteTaskItem(id){
+  try{ await api(`/tasks/${id}`, { method:"DELETE" }); loadTasks(); }
+  catch(err){ showError(err.message); }
+}
+
+/* ---------- HABITS ---------- */
+async function loadHabits(){
+  try{
+    const habits = await api("/habits");
+    const list = document.getElementById("habits-list");
+    if (!habits.length){
+      list.innerHTML = '<div class="empty">No habits yet. Add one above.</div>';
+      return;
+    }
+    list.innerHTML = habits.map(h => `
+      <div class="card">
+        <div class="details">
+          <h3>${escapeHtml(h.name)}</h3>
+          <div class="meta"><span class="pill done">Streak: ${h.streak || 0}</span></div>
+        </div>
+        <div class="actions">
+          <button class="complete" onclick="checkInHabit('${h.id}')">Check in</button>
+          <button class="delete" onclick="deleteHabitItem('${h.id}')">Delete</button>
+        </div>
+      </div>
+    `).join("");
+  }catch(err){ showError(err.message); }
+}
+
+document.getElementById("habit-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = document.getElementById("habit-name").value.trim();
+  if (!name) return;
+  try{
+    await api("/habits", { method:"POST", body: JSON.stringify({ name }) });
+    document.getElementById("habit-name").value = "";
+    loadHabits();
+  }catch(err){ showError(err.message); }
+});
+
+async function checkInHabit(id){
+  try{ await api(`/habits/${id}/checkin`, { method:"POST" }); loadHabits(); }
+  catch(err){ showError(err.message); }
+}
+async function deleteHabitItem(id){
+  try{ await api(`/habits/${id}`, { method:"DELETE" }); loadHabits(); }
+  catch(err){ showError(err.message); }
+}
+
+/* ---------- UTIL ---------- */
+function escapeHtml(str){
+  if (str == null) return "";
+  return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* ---------- INIT ---------- */
+if (getToken()){ showApp(); } else { showAuth(); }
+</script>
+
+</body>
+</html>
